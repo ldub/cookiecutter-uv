@@ -37,6 +37,7 @@ In the below examples "concern" is an application concept. It could be something
 - Use `structlog` for logging.
 - Use `pydantic-settings` for all settings and env var management. Integrate with `click` so that CLI flags can override settings cleanly. Load and validate all settings at startup.
 - Use `python-dotenv` to load .env for local development. Only load .env in local/test, not in prod.
+- Use `fastapi` for creating HTTP services. Make sure to get a lot of information on how the service will be used and where it will be deployed.
 
 ## Concurrency
 
