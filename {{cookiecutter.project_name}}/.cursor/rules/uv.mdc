@@ -1,0 +1,147 @@
+---
+alwaysApply: true
+---
+
+# Cursor Rules for {{cookiecutter.project_name}}
+
+## Package Management — Always Use uv
+
+This project uses **uv** as the package manager. Never use pip, poetry, or other package managers.
+
+### Commands
+
+- **Install/sync dependencies**: `uv sync`
+- **Add a dependency**: `uv add <package>`
+- **Add a dev dependency**: `uv add --group dev <package>`
+- **Remove a dependency**: `uv remove <package>`
+- **Run any Python command**: `uv run <command>`
+- **Run a one-off tool**: `uvx <tool>`
+
+### Examples
+
+```bash
+# ✅ Correct
+uv sync
+uv add requests
+uv run python script.py
+uv run pytest
+uv run ruff check .
+
+# ❌ Wrong — never do this
+pip install requests
+python script.py
+pytest
+```
+
+## Project Structure
+
+This project uses a **src layout**:
+
+```
+src/
+  {{cookiecutter.project_name}}/
+    __init__.py
+    <modules>.py
+tests/
+  test_<modules>.py
+```
+
+- Source code goes in `src/{{cookiecutter.project_name}}/`
+- Tests go in `tests/` and should be named `test_*.py`
+- Imports use `from {{cookiecutter.project_name}}.<module> import ...`
+
+## Development Commands
+
+Use the Makefile targets for common tasks:
+
+| Command       | Description                                      |
+|---------------|--------------------------------------------------|
+| `make install`| Create venv, sync deps, install pre-commit hooks |
+| `make check`  | Run linting (ruff), type checking (ty)           |
+| `make test`   | Run pytest with doctests                         |
+| `make build`  | Build wheel file                                 |
+| `make help`   | Show all available commands                      |
+
+Or run tools directly:
+
+```bash
+uv run pytest                    # Run tests
+uv run pytest -xvs              # Run tests verbose, stop on first failure
+uv run ruff check .             # Lint code
+uv run ruff format .            # Format code
+uv run ty check                 # Type check
+uv run pre-commit run -a        # Run all pre-commit hooks
+```
+
+## Code Quality Tools
+
+### Ruff (Linting & Formatting)
+
+- Config is in `pyproject.toml` under `[tool.ruff]`
+- Line length: 120 characters
+- Auto-fix enabled
+- Key lint rules: isort (I), pyflakes (F), pycodestyle (E/W), bugbear (B), security (S)
+
+### Type Checking with ty
+
+- Run with: `uv run ty check`
+- Config in `pyproject.toml` under `[tool.ty.environment]`
+- Python version target: 3.14
+
+### Pre-commit Hooks
+
+Pre-commit is configured with:
+- Standard hooks (trailing whitespace, end-of-file-fixer, YAML/TOML/JSON validation)
+- ruff-check and ruff-format
+
+Run all hooks manually: `uv run pre-commit run -a`
+
+## Testing
+
+- Framework: pytest
+- Tests directory: `tests/`
+- Run tests: `uv run pytest` or `make test`
+- Doctests are enabled via `--doctest-modules`
+- Test config in `pyproject.toml` under `[tool.pytest.ini_options]`
+
+### Multi-version Testing
+
+Use tox for testing across Python versions:
+```bash
+uv run tox
+```
+
+Supported Python versions: 3.10, 3.11, 3.12, 3.13, 3.14
+
+## Dependencies
+
+Dependencies are declared in `pyproject.toml`:
+- Runtime deps: under `[project]` → `dependencies` (currently none)
+- Dev deps: under `[dependency-groups]` → `dev`
+
+The lockfile `uv.lock` should be committed for reproducibility.
+
+## Python Version
+
+- Minimum: Python 3.10
+- Target for type checking: 3.10
+- Supported range: `>=3.10,<4.0`
+
+## Coding Style
+
+- Follow Google-style docstrings (see `src/{{cookiecutter.project_name}}/foo.py` for example)
+- Use type hints for all function signatures
+- Keep line length under 120 characters
+- Let ruff handle import sorting and formatting
+
+## Building & Publishing
+
+Build wheel: `make build` or `uvx --from build pyproject-build --installer uv`
+
+## Important Notes
+
+1. **Always run Python through uv**: `uv run python ...`
+2. **Never activate venv manually** — uv handles this automatically
+3. **Lock file**: Run `uv lock --locked` to verify lock file is up to date
+4. **New dependencies**: Use `uv add`, never edit pyproject.toml manually for deps
+

@@ -1,0 +1,39 @@
+---
+description: Apply when generating code that interacts with OpenAI APIs
+alwaysApply: false
+---
+## Cursor Rule: OpenAI API Usage (Python)
+
+* Always use the **OpenAI Responses API** via `client.responses.create(...)`.
+* **Do NOT** use the legacy Chat Completions API (`client.chat.completions.create`, `openai.ChatCompletion.create`, or any equivalent).
+* Assume the OpenAI Python SDK is available and imported as `from openai import OpenAI`.
+* Write code compatible with the **current OpenAI Python SDK**.
+* If an example, refactor, or suggestion would normally use Chat Completions, **rewrite it using the Responses API instead**.
+* Prefer structured outputs (e.g., `response.output_text`) when returning model text.
+* Prefer AsyncOpenAI.
+
+**Allowed pattern (example):**
+
+```python
+from openai import OpenAI
+
+client = OpenAI()
+
+response = client.responses.create(
+    model="gpt-5-mini",
+    input="Your prompt here"
+)
+
+print(response.output_text)
+```
+
+**Disallowed patterns (never generate):**
+
+* `client.chat.completions.create(...)`
+* `openai.ChatCompletion.create(...)`
+* Any reference to “Chat Completions API” as an implementation choice
+
+**Correction behavior:**
+
+* If existing code uses Chat Completions, automatically migrate it to the Responses API.
+* If a request mentions Chat Completions, explain briefly that it is deprecated and proceed with the Responses API.

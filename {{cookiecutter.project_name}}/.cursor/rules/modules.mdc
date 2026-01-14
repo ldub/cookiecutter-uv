@@ -1,0 +1,119 @@
+---
+alwaysApply: true
+---
+# Cursor Rules - {{cookiecutter.project_name}}
+
+## Architecture Principles
+
+- **Keep IO explicit**: no “random IO” sprinkled throughout the codebase.
+  - **Filesystem IO** lives in `src/{{cookiecutter.project_name}}/io/fs/` (e.g. `{{cookiecutter.project_name}}.io.fs.read_text`, `write_text`, `write_json`).
+  - **Network IO** lives in `src/{{cookiecutter.project_name}}/io/network/` (e.g. `{{cookiecutter.project_name}}.io.network.some_web_service.request`, `http_request`, `get_service_response`).
+  - Business logic modules should be **pure** (take inputs, return outputs) unless they are clearly “pipeline/orchestration” modules.
+
+In the below examples "concern" is an application concept. It could be something like "reviews" for review data or "usage" for usage data or "organizations" for organization data.
+
+- **Separate stages**:
+  - **Discovery**: `{{cookiecutter.project_name}}.concern.discovery` finds files or resources to work with; no parsing.
+  - **Parsing**: `{{cookiecutter.project_name}}.concern.parse` is pure and returns typed models.
+  - **Planning**: `{{cookiecutter.project_name}}.concern.planner` computes all work to do up front; no IO.
+  - **Execution**: `{{cookiecutter.project_name}}.concern.streaming` performs async API calls with concurrency controls.
+  - **Rendering**: `{{cookiecutter.project_name}}.concern.reporting` builds reports via string building, json formatting, markdown.
+  - **Side effects**: `{{cookiecutter.project_name}}.concern.pdf` runs pandoc via subprocess (isolated).
+
+- **One-way dependencies**: lower layers must not import higher layers. With example concerns below being reviews, analysis, and reporting.
+  - `reviews/*` must not import `analysis/*` or `reporting/*`.
+  - `reporting/*` must not import `analysis/*` or `reviews/*` models directly unless via JSON-compatible dicts.
+  - `cli.py` may import orchestration modules; orchestration should not depend on CLI.
+
+## Preferred libraries
+
+- Use `click` for cli interfaces
+- Use `httpx` for making http requests. Always use async mode.
+- Use `numpy` for mathematical functions
+- Use `openai` for interacting with ChatGPT API and always use responses mode and async mode.
+- Use `pydantic` for schema and data validation.
+- Use `respx` for response mocking.
+- Use `pytest` and `pytest-asyncio` for unit tests.
+- Use `structlog` for logging.
+- Use `pydantic-settings` for all settings and env var management. Integrate with `click` so that CLI flags can override settings cleanly. Load and validate all settings at startup.
+- Use `python-dotenv` to load .env for local development. Only load .env in local/test, not in prod.
+
+## Concurrency
+
+- Use `asyncio` with a **semaphore** for rate-limited concurrency.
+- Prefer **planning all tasks up front** then executing concurrently.
+- When adding new streaming/progress behavior, keep it as callbacks/events from the runner (don’t couple core logic to printing or writing files).
+- When running many HTTPS requests which are independent of each other, always compute the requests you need to make up front, and then run them concurrently.
+- Always make the concurrency factor configurable.
+
+## Reporting & Runs
+
+- Whenever writing analysis or reporting code, make sure to identify it with a timestamp of when the analysis was run.
+- All analysis artifacts go under `data/analysis/<timestamp>/`:
+  - `analysis.json`, `meta.json`, `inspect/`, `report.md`, `report.pdf`, etc.
+- Prefer writing incremental outputs (inspect + summary) in the CLI callback, not inside core analysis logic.
+
+## Repo Hygiene
+
+- **Do not edit files under `data/`** (scripts there are treated as reference/legacy).
+- Use `uv` for all Python commands (`uv run ...`).
+- Keep code formatted/linted with ruff; avoid introducing new dependencies unless necessary.
+
+## Testing
+
+- Add tests for **pure logic** (parsing, planning, markdown generation, run-dir resolution).
+- Avoid tests that require network calls; mock or keep network behind wrappers.
+
+## Script Entry Points
+
+- Create a main entry point for `uv run {{cookiecutter.project_name}}`.
+- Create sub entry points such as `run`, `analyze`, `create-report` etc.
+- These should be run using `uv run {{cookiecutter.project_name}} analyze` etc.
+- When creating new scripts, commands or altering them, always explain to the user how to run the new command in their terminal.
+
+## Bad Patterns
+
+### Configuration & Env Vars
+- Do **not** read env vars (`os.getenv`, `os.environ`) outside the settings module.
+- Do **not** mix multiple config systems.
+- Do **not** provide defaults for required secrets.
+- Do **not** silently ignore invalid or unknown config values.
+- Do **not** mutate configuration at runtime after startup.
+- Do **not** branch on environment (`prod`, `dev`) throughout the codebase. Centralize it.
+- Do **not** hardcode environment-specific values (URLs, keys, model names).
+- Do **not** load `.env` files in production.
+- Do **not** treat `.env` as a source of truth.
+- Do **not** log full config objects or secrets (even in debug).
+- Do **not** rely on developer machine env vars in tests.
+
+### Validation & Safety
+- Do **not** keep config values untyped or parse them ad-hoc.
+- Do **not** accept malformed values (negative timeouts, empty URLs).
+- Do **not** provide insecure defaults (`DEBUG=true`, `verify=False`).
+
+### Import & Startup Behavior
+- Do **not** read env vars or initialize clients at import time.
+- Do **not** create network clients (OpenAI, DB, HTTP) outside explicit startup/init code.
+- Do **not** rely on import order for configuration correctness.
+
+### Secrets
+- Do **not** commit secrets or `.env` files.
+- Do **not** print secrets in logs, errors, or stack traces.
+- Do **not** pass secrets around freely. Load once and inject narrowly.
+
+### IO & Side Effects
+- Do **not** mix IO with pure logic or business code.
+- Do **not** perform IO (network, filesystem, env access) inside pure functions.
+- Do **not** mix different types of IO in the same layer or function (e.g., HTTP + filesystem + env).
+- Do **not** hide IO inside helpers that appear pure.
+- Do **not** make pure code depend on global state.
+
+### Async & Networking
+- Do **not** omit timeouts for network operations.
+- Do **not** disable TLS verification except in tightly controlled dev scenarios.
+- Do **not** blindly retry non-idempotent operations.
+
+### Naming & Structure
+- Do **not** use inconsistent or unprefixed env var names.
+- Do **not** overload a single env var with multiple meanings.
+- Do **not** scatter configuration logic across the codebase.
